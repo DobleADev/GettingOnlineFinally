@@ -17,6 +17,7 @@ public class CustomNetworkDiscovery : NetworkDiscovery
             foundServers[fromAddress] = data;
             if (OnServerFoundEvent != null)
             {
+                Debug.Log(fromAddress + data);
                 OnServerFoundEvent.Invoke(fromAddress, data);
             }
         }

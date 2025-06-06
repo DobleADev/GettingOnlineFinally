@@ -25,51 +25,92 @@ public class LobbyUIHandler : MonoBehaviour
 
     void Start()
     {
-        // Asegúrate de obtener la referencia a tu CustomNetworkManager
+        // La lógica de asignación inicial de customNetworkManager y customNetworkDiscovery.
+        // Esto es para la primera carga de la escena.
         if (customNetworkManager == null)
         {
             customNetworkManager = FindObjectOfType<CustomNetworkManager>();
-            if (customNetworkManager == null)
-            {
-                Debug.LogError("LobbyUIHandler: CustomNetworkManager not found in scene!");
-                return;
-            }
         }
         if (customNetworkDiscovery == null)
         {
             customNetworkDiscovery = FindObjectOfType<CustomNetworkDiscovery>();
-            if (customNetworkDiscovery == null)
-            {
-                Debug.LogError("LobbyUIHandler: CustomNetworkDiscovery not found in scene!");
-                return;
-            }
         }
 
-        // Suscribirse a los EVENTOS PERSONALIZADOS de CustomNetworkManager
-        customNetworkManager.OnClientConnectedEvent += OnClientConnected;
-        customNetworkManager.OnClientDisconnectedEvent += OnClientDisconnected;
-        customNetworkManager.OnHostStartedEvent += OnHostStarted;
-        customNetworkManager.OnHostStoppedEvent += OnHostStopped;
+        // Ya tienes los null checks, lo cual es bueno.
+        // Los eventos de red deben ser suscritos aquí O en OnEnable,
+        // y desuscritos en OnDisable/OnDestroy para evitar fugas.
+        // Lo más seguro es OnEnable/OnDisable si el GameObject se activa/desactiva.
+        // Si el GameObject LobbyUIHandler nunca se desactiva, Start/OnDestroy es suficiente.
+        // Dado que tu problema es al recargar la escena, OnEnable/OnDisable es la mejor opción.
 
-        // Suscribirse al evento de descubrimiento de servidores
-        customNetworkDiscovery.OnServerFoundEvent += AddGameEntryToList;
-
+        // ShowLobbyPanel();
+        // Iniciar el refresh al principio de la escena del lobby.
+        // Si se llama en Start(), se asegura que solo se haga una vez por carga de escena.
+        // OnClickRefreshGames();
     }
 
-    void OnDestroy()
+
+    void OnEnable() // Se llama cada vez que el GameObject se activa (incluyendo la carga de escena)
     {
-        // Desuscribirse para evitar errores y fugas de memoria
-        if (customNetworkDiscovery != null)
+        // Re-obtener las referencias y re-suscribirse a eventos cada vez que el LobbyUIHandler se activa.
+        // Esto es vital si el CustomNetworkManager persiste con DontDestroyOnLoad.
+
+        if (customNetworkManager == null)
         {
-            customNetworkDiscovery.OnServerFoundEvent -= AddGameEntryToList;
+            customNetworkManager = FindObjectOfType<CustomNetworkManager>();
+        }
+        if (customNetworkDiscovery == null)
+        {
+            customNetworkDiscovery = FindObjectOfType<CustomNetworkDiscovery>();
         }
 
+        // Asegúrate de que las referencias no sean null antes de suscribir.
+        if (customNetworkManager != null)
+        {
+            customNetworkManager.OnClientConnectedEvent += OnClientConnected;
+            customNetworkManager.OnClientDisconnectedEvent += OnClientDisconnected;
+            customNetworkManager.OnHostStartedEvent += OnHostStarted;
+            customNetworkManager.OnHostStoppedEvent += OnHostStopped;
+            Debug.Log("LobbyUIHandler: Subscribed to CustomNetworkManager events.");
+        }
+        else
+        {
+            Debug.LogError("LobbyUIHandler: CustomNetworkManager is NULL in OnEnable. Check scene setup.");
+        }
+
+        if (customNetworkDiscovery != null)
+        {
+            customNetworkDiscovery.OnServerFoundEvent += AddGameEntryToList;
+            Debug.Log("LobbyUIHandler: Subscribed to CustomNetworkDiscovery events.");
+        }
+        else
+        {
+            Debug.LogError("LobbyUIHandler: CustomNetworkDiscovery is NULL in OnEnable. Check scene setup.");
+        }
+    }
+
+    void OnDisable() // Se llama cada vez que el GameObject se desactiva (o se destruye)
+    {
+        // Desuscribirse para evitar fugas de memoria. Esto es MUY importante.
         if (customNetworkManager != null)
         {
             customNetworkManager.OnClientConnectedEvent -= OnClientConnected;
             customNetworkManager.OnClientDisconnectedEvent -= OnClientDisconnected;
             customNetworkManager.OnHostStartedEvent -= OnHostStarted;
             customNetworkManager.OnHostStoppedEvent -= OnHostStopped;
+            Debug.Log("LobbyUIHandler: Unsubscribed from CustomNetworkManager events.");
+        }
+
+        if (customNetworkDiscovery != null)
+        {
+            customNetworkDiscovery.OnServerFoundEvent -= AddGameEntryToList;
+            Debug.Log("LobbyUIHandler: Unsubscribed from CustomNetworkDiscovery events.");
+            // Si el NetworkDiscovery está corriendo al deshabilitarse la UI del lobby,
+            // esto podría ser un buen lugar para detenerlo para evitar que siga escuchando.
+            // Pero ShowLobbyPanel y OnClientDisconnected/OnHostStopped ya manejan esto.
+            // Solo si la escena se destruye por completo o si se desactiva el objeto
+            // sin un cambio de escena/desconexión explícito.
+            // if (customNetworkDiscovery.running) customNetworkDiscovery.StopBroadcast();
         }
     }
 
@@ -158,48 +199,61 @@ public class LobbyUIHandler : MonoBehaviour
 
     public void OnClickRefreshListedGames()
     {
-		if (!customNetworkDiscovery.running)
-		{
-			customNetworkDiscovery.Initialize();
-			customNetworkDiscovery.StartAsClient();
-			Debug.Log("Searching for games...");
-		}
+        if (!customNetworkDiscovery.running)
+        {
+            customNetworkDiscovery.Initialize();
+            customNetworkDiscovery.StartAsClient();
+            Debug.Log("Searching for games...");
+        }
     }
-	
-	public void OnClickStopRefreshing()
+
+    public void OnClickStopRefreshing()
     {
-		if (customNetworkDiscovery.running)
-		{
-			Debug.Log("Searching stopped");
-			customNetworkDiscovery.StopBroadcast();
-			ClearGameEntries();
-			customNetworkDiscovery.ClearFoundServers();
-		}
+        if (customNetworkDiscovery.running)
+        {
+            Debug.Log("Searching stopped");
+            customNetworkDiscovery.StopBroadcast();
+            ClearGameEntries();
+            customNetworkDiscovery.ClearFoundServers();
+        }
     }
 
-    // --- Game Entry UI Management (Sin cambios aquí) ---
+    private void AddGameEntryToList(string fromAddress, string data)
+{
+    // Usamos el 'data' (nombre del juego) como clave para la deduplicación en la UI.
+    // Asume que 'data' es el nombre único de la partida.
+    string gameIdentifier = data; // O una combinación de data y algo más si el nombre no es único.
 
-	private void AddGameEntryToList(string fromAddress, string data)
-	{
-		if (listedGameEntries.ContainsKey(fromAddress))
-		{
-			listedGameEntries[fromAddress].GetComponentInChildren<Text>().text = "Game: " + data + " (" + fromAddress + ")";
-			return;
-		}
+    if (listedGameEntries.ContainsKey(gameIdentifier))
+    {
+        // Actualizamos la entrada existente.
+        // Puedes decidir si quieres mostrar todas las IPs o solo la primera.
+        // Para mostrar todas, podrías concatenarlas o listarlas en el texto.
+        // Por ahora, solo actualizamos el texto, mostrando la IP más reciente o la primera.
+        listedGameEntries[gameIdentifier].GetComponentInChildren<Text>().text = "Game: " + data + " (" + fromAddress + ")";
+        Debug.Log("Updated existing game entry for '" + gameIdentifier + "' with IP: " + fromAddress);
+        return;
+    }
 
-		GameObject entry = Instantiate(gameEntryPrefab, contentPanel);
-		entry.name = "GameEntry_" + fromAddress;
+    // Si no existe, creamos una nueva entrada.
+    GameObject entry = Instantiate(gameEntryPrefab, contentPanel);
+    entry.name = "GameEntry_" + gameIdentifier; // Nombre del GameObject en la jerarquía
 
-		Text gameInfoText = entry.GetComponentInChildren<Text>();
-		Button joinButton = entry.GetComponentInChildren<Button>();
+    Text gameInfoText = entry.GetComponentInChildren<Text>();
+    Button joinButton = entry.GetComponentInChildren<Button>();
 
-		gameInfoText.text = "Game: " + data + " (" + fromAddress + ")";
+    gameInfoText.text = "Game: " + data + " (" + fromAddress + ")";
 
-		joinButton.onClick.AddListener(() => OnClickJoinGame(fromAddress));
+    // Guardamos la IP asociada al botón de unirse.
+    // Aquí hay una decisión: si hay múltiples IPs para el mismo juego, ¿cuál usar?
+    // La más sencilla es usar la última recibida, o la que el host prefiera para la conexión.
+    // En tu caso, el OnClickJoinGame ya toma la IP.
+    joinButton.onClick.RemoveAllListeners(); // Limpiamos para evitar duplicados si se actualiza.
+    joinButton.onClick.AddListener(() => OnClickJoinGame(fromAddress));
 
-		listedGameEntries.Add(fromAddress, entry);
-		Debug.Log("Added game entry: " + data + " (" + fromAddress + ")");
-	}
+    listedGameEntries.Add(gameIdentifier, entry);
+    Debug.Log("Added new game entry: '" + gameIdentifier + "' from IP: " + fromAddress);
+}
 
     private void ClearGameEntries()
     {
@@ -208,5 +262,30 @@ public class LobbyUIHandler : MonoBehaviour
             Destroy(entry);
         }
         listedGameEntries.Clear();
+        Debug.Log("Cleared all game entries from UI.");
+    }
+
+    public void OnClickRefreshGames()
+    {
+        Debug.Log("Refreshing game list...");
+
+        // 1. Siempre detén cualquier broadcast anterior si está corriendo.
+        if (customNetworkDiscovery.running)
+        {
+            customNetworkDiscovery.StopBroadcast();
+            Debug.Log("Stopped previous NetworkDiscovery broadcast.");
+        }
+
+        // 2. Limpia la lista de partidas del UI Y del NetworkDiscovery.
+        ClearGameEntries(); // <-- Asegúrate de que esto se llama para destruir GameObjects.
+        customNetworkDiscovery.ClearFoundServers(); // <-- Limpia el diccionario interno de NetworkDiscovery.
+
+        // 3. Re-inicializa NetworkDiscovery.
+        customNetworkDiscovery.Initialize();
+        Debug.Log("NetworkDiscovery Initialized.");
+
+        // 4. Inicia NetworkDiscovery como cliente para buscar partidas.
+        customNetworkDiscovery.StartAsClient();
+        Debug.Log("Searching for games as client.");
     }
 }
