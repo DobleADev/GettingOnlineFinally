@@ -111,10 +111,10 @@ public class LanPlayer : NetworkBehaviour
 			physics.DetachFromGround();
 
 			// --- NUEVO: Disparar Trigger de salto a través de NetworkAnimator ---
-			if (networkAnimator != null)
-			{
-				networkAnimator.SetTrigger("Jump"); // Asume un Trigger llamado "Jump" en tu Animator Controller
-			}
+			// if (networkAnimator != null)
+			// {
+			// 	networkAnimator.SetTrigger("Jump"); // Asume un Trigger llamado "Jump" en tu Animator Controller
+			// }
 		}
 
 		walkVelocity = Vector3.MoveTowards(walkVelocity, moveSpeed * Vector3.ClampMagnitude(new Vector3(walkInput.x, 0, walkInput.y), 1), groundFriction * Time.deltaTime);
