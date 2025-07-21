@@ -5,19 +5,19 @@ EditorBuildSettings:
   m_ObjectHideFlags: 0
   serializedVersion: 2
   m_Scenes:
-  - enabled: 0
+  - enabled: 1
     path: Assets/OnlineSetup/O-Lobby.unity
     guid: ce831638e3fb64b4ab2e272ba2e9c3b3
   - enabled: 0
     path: Assets/OnlineSetup/O-Game.unity
     guid: 86960dc1ab7bdfd4abef733da322c196
-  - enabled: 0
+  - enabled: 1
     path: Assets/OnlineSetup/O-Game2.unity
     guid: 582d29da4165d58469bafd8903fbf458
-  - enabled: 1
+  - enabled: 0
     path: Assets/Local party/L-Lobby.unity
     guid: af66fd262c31e5b4786c12315286844a
-  - enabled: 1
+  - enabled: 0
     path: Assets/Local party/L-Game.unity
     guid: 163816a0baff9a946a85fa98c15ea81b
   m_configObjects: {}
