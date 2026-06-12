@@ -150,6 +150,7 @@ public class LobbyUIHandler : MonoBehaviour
         Debug.Log("LobbyUIHandler: Host started successfully (via event). Loading game scene.");
         // El host siempre va directo a la escena de juego.
         ShowConnectingPanel(); // Mostrar panel de carga/espera
+        // customNetworkManager.StopHost();
     }
 
     void OnHostStopped()
