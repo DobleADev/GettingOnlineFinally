@@ -48,7 +48,10 @@ public class LanPlayer : NetworkBehaviour
 	{
 		Debug.Log("OnStartLocalPlayer: Jugador local activado.");
 		currentSafePoint = initialSpawnPoint;
+
+		#if UNITY_ANDROID
 		_ui.SetActive(true);
+		#endif
 		_cam.SetActive(true);
 		physics = new PlatformerCharacterController(_cc); // Descomenta si necesitas instanciarlo aquí
 
@@ -77,13 +80,19 @@ public class LanPlayer : NetworkBehaviour
 			return;
 		}
 
-		walkInput = _joystick.Direction;
-		HandleMovement();
-
+		walkInput = Vector2.ClampMagnitude(_joystick.Direction + new Vector2(Input.GetAxisRaw("Horizontal"), Input.GetAxisRaw("Vertical")), 1);
+		
+		if (Input.GetButtonDown("Jump")) Jump();
+		if (Input.GetButtonDown("Emote")) Cheer();
+		
 		if (physics != null && physics.isOnStableGround)
 		{
 			canJump = true;
 		}
+
+		HandleMovement();
+
+		
 
 		// --- NUEVO: Sincronizar parámetros del Animator para el salto y el suelo ---
 		if (currentAnimator != null && networkAnimator != null)
